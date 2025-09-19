@@ -11,7 +11,7 @@
 // Compile for simulation: g++ -std=c++17 -O3 -DSIMULATE_MODE -o lab1_rx_sim lab1.cpp -pthread
 // Run: ./lab1_rx (hardware) or ./lab1_rx_sim (simulation)
 
-// UHD includes - comment out for local testing without UHD
+// UHD includes - simulation mode
 #ifndef SIMULATE_MODE
 #include <uhd/usrp/multi_usrp.hpp>
 #include <uhd/stream.hpp>
