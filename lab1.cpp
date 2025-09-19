@@ -1,17 +1,19 @@
 
-// Temporary fix for IDE IntelliSense
-#ifndef SIMULATE_MODE
-#define SIMULATE_MODE
-#endif
 
-// EEL6528 Lab 1: Multi-threaded RX Streamer with Power Calculation
+// EEL6528 Lab 1: Make friends with UHD
+// Rquirements:push blocks of these samples to a FIFO queue, and calculate 
+// and print the averaged sample power values of the blocks. 
+
 
 //
-// Compile for real hardware: g++ -std=c++17 -O3 -o lab1_rx lab1.cpp -luhd -pthread
 // Compile for simulation: g++ -std=c++17 -O3 -DSIMULATE_MODE -o lab1_rx_sim lab1.cpp -pthread
-// Run: ./lab1_rx (hardware) or ./lab1_rx_sim (simulation)
+// Run: lab1_rx_sim (simulation)
 
-// UHD includes - simulation mode
+// Compile for N210 USRP: g++ -std=c++17 -O3 -o lab1_rx lab1.cpp -luhd -pthread
+// Run: ./lab1_rx (hardware)
+
+
+// Simulation mode UHD includes
 #ifndef SIMULATE_MODE
 #include <uhd/usrp/multi_usrp.hpp>
 #include <uhd/stream.hpp>
@@ -132,7 +134,7 @@ namespace uhd {
 const double RX_FREQ = 2.437e9;        // 2.437 GHz RX carrier frequency
 const double RX_RATE = 1e6;            // RX sampleing rate
 const double RX_GAIN = 30.0;           // Default RX gain
-const size_t SAMPLES_PER_BLOCK = 10000; // 10000 samples per block as required
+const size_t SAMPLES_PER_BLOCK = 10000; // 10000 samples per block
 
 // Thread control variables
 std::atomic<bool> stop_signal(false);
@@ -206,7 +208,7 @@ public:
 SampleQueue sample_queue;
 
 // =============================================================================
-// RX Streamer Function (based on class example rx_samples_to_file.cpp pattern)
+// RX Streamer Function (based on example rx_samples_to_file.cpp pattern)
 // =============================================================================
 void rx_streamer_thread(uhd::usrp::multi_usrp::sptr usrp, double sampling_rate) {
     
@@ -302,7 +304,7 @@ void rx_streamer_thread(uhd::usrp::multi_usrp::sptr usrp, double sampling_rate) 
         if (md.error_code == uhd::rx_metadata_t::ERROR_CODE_OVERFLOW) {
             // Overflow - samples were dropped
             overflow_count++;
-            std::cerr << "O";  // Print 'O' for overflow
+            std::cerr << "Overflow";  // Print 'overflow' when overflow occurs
             std::cerr.flush();
             continue;
         }
@@ -384,7 +386,7 @@ int main(int argc, char* argv[]) {
     
     // Parse command line arguments for sampling rate
     double sampling_rate = RX_RATE;
-    int num_threads = 2;  // Default 2 processing threads as required
+    int num_threads = 2;    // Default 2 processing threads
     double run_time = 10.0;  // Default run for 10 seconds
     
     if (argc > 1) {
@@ -411,7 +413,7 @@ int main(int argc, char* argv[]) {
 #ifndef SIMULATE_MODE
     // Create USRP device
     std::cout << "\n=== Creating USRP device ===" << std::endl;
-    std::string device_args = "";  // Empty for default
+    std::string device_args = "";   // Empty for default
     uhd::usrp::multi_usrp::sptr usrp = uhd::usrp::multi_usrp::make(device_args);
 #else
     // Create mock USRP for simulation

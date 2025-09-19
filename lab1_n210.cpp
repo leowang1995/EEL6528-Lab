@@ -1,6 +1,5 @@
-// EEL6528 Lab 1: Multi-threaded RX Streamer for N210 Hardware
-// Compile: g++ -std=c++17 -O3 -o lab1_n210 lab1_n210.cpp -luhd -pthread
-// Run: ./lab1_n210
+// EEL6528 Lab 1: Multi-threaded RX Streamer with N210 Hardware
+// Hardware version - requires UHD library and N210 radio
 
 #include <uhd/usrp/multi_usrp.hpp>
 #include <uhd/stream.hpp>
@@ -19,22 +18,20 @@
 #include <atomic>
 #include <chrono>
 #include <iomanip>
-#include <algorithm>
 #include <string>
 #include <memory>
 #include <cmath>
+#include <cstdlib>
 
-// N210 Hardware Configuration
-const double RX_FREQ = 2.437e9;        // 2.437 GHz RX carrier frequency
-const double RX_RATE = 1e6;            // 1 MHz RX sampling rate
-const double RX_GAIN = 20.0;           // 20 dB RX gain (safe starting point)
+// Hardware-specific parameters for N210
+const double RX_FREQ = 2.4e9;          // 2.4 GHz carrier frequency
+const double RX_RATE = 1e6;            // 1 MHz sampling rate (safe for N210)
+const double RX_GAIN = 20.0;           // 20 dB gain (safe starting point)
 const size_t SAMPLES_PER_BLOCK = 10000; // 10000 samples per block
 
 // Thread control variables
 std::atomic<bool> stop_signal(false);
 std::atomic<size_t> overflow_count(0);
-
-// Mutex for thread-safe console output
 std::mutex console_mutex;
 
 // SampleBlock structure
@@ -62,7 +59,6 @@ public:
     
     bool pop(SampleBlock& block) {
         std::unique_lock<std::mutex> lock(mtx);
-        
         cv.wait(lock, [this] { 
             return !queue.empty() || stop_signal.load(); 
         });
@@ -89,10 +85,9 @@ public:
     }
 };
 
-// Global queue instance
 SampleQueue sample_queue;
 
-// RX Streamer Function for N210 Hardware
+// RX Streamer Function for Hardware
 void rx_streamer_thread(uhd::usrp::multi_usrp::sptr usrp, double sampling_rate) {
     
     // Set RX rate
@@ -130,7 +125,7 @@ void rx_streamer_thread(uhd::usrp::multi_usrp::sptr usrp, double sampling_rate) 
     }
     
     // Wait for hardware to settle
-    std::this_thread::sleep_for(std::chrono::seconds(1));
+    std::this_thread::sleep_for(std::chrono::seconds(2));
     
     // Check LO locked sensor
     std::vector<std::string> sensor_names = usrp->get_rx_sensor_names();
@@ -139,7 +134,7 @@ void rx_streamer_thread(uhd::usrp::multi_usrp::sptr usrp, double sampling_rate) 
         std::lock_guard<std::mutex> lock(console_mutex);
         std::cout << "LO Locked: " << lo_locked.to_pp_string() << std::endl;
         if (!lo_locked.to_bool()) {
-            std::cerr << "Failed to lock LO" << std::endl;
+            std::cerr << "Failed to lock LO - check frequency and hardware!" << std::endl;
             return;
         }
     }
@@ -161,18 +156,15 @@ void rx_streamer_thread(uhd::usrp::multi_usrp::sptr usrp, double sampling_rate) 
     rx_stream->issue_stream_cmd(stream_cmd);
     {
         std::lock_guard<std::mutex> lock(console_mutex);
-        std::cout << "\n=== RX Streaming Started (N210 Hardware) ===" << std::endl;
+        std::cout << "\n=== RX Streaming Started (Hardware) ===" << std::endl;
     }
     
     // RX metadata
     uhd::rx_metadata_t md;
-    
-    // Block counter
     size_t block_counter = 0;
     
-    // Main streaming loop - receiving REAL radio signals!
+    // Main streaming loop - receives REAL radio data!
     while (!stop_signal.load()) {
-        // Receive samples from N210
         size_t num_rx_samps = rx_stream->recv(
             &buff.front(),
             buff.size(),
@@ -183,12 +175,11 @@ void rx_streamer_thread(uhd::usrp::multi_usrp::sptr usrp, double sampling_rate) 
         // Handle errors
         if (md.error_code == uhd::rx_metadata_t::ERROR_CODE_TIMEOUT) {
             std::lock_guard<std::mutex> lock(console_mutex);
-            std::cerr << "Timeout while receiving" << std::endl;
+            std::cerr << "Timeout while receiving - check hardware connection!" << std::endl;
             break;
         }
         
         if (md.error_code == uhd::rx_metadata_t::ERROR_CODE_OVERFLOW) {
-            // Overflow - samples were dropped
             overflow_count++;
             std::cerr << "O";  // Print 'O' for overflow
             std::cerr.flush();
@@ -201,7 +192,7 @@ void rx_streamer_thread(uhd::usrp::multi_usrp::sptr usrp, double sampling_rate) 
             break;
         }
         
-        // Push complete block to queue
+        // Push complete block to queue - REAL RADIO DATA!
         if (num_rx_samps == SAMPLES_PER_BLOCK) {
             SampleBlock block(block_counter++, SAMPLES_PER_BLOCK);
             block.samples = buff;
@@ -221,7 +212,7 @@ void rx_streamer_thread(uhd::usrp::multi_usrp::sptr usrp, double sampling_rate) 
     }
 }
 
-// Processing Thread Function
+// Processing Thread Function (same as simulation)
 void processing_thread(int thread_id) {
     {
         std::lock_guard<std::mutex> lock(console_mutex);
@@ -233,20 +224,18 @@ void processing_thread(int thread_id) {
     while (!stop_signal.load()) {
         SampleBlock block;
         
-        // Get block from queue
         if (!sample_queue.pop(block)) {
-            break;  // Stop signal received
+            break;
         }
         
-        // Calculate average power: (1/N) * sum(|x[n]|^2) from REAL radio signals!
+        // Calculate average power from REAL radio signals!
         double sum_power = 0.0;
         for (const auto& sample : block.samples) {
-            // |x|^2 = real^2 + imag^2
             sum_power += std::norm(sample);
         }
         double avg_power = sum_power / block.samples.size();
         
-        // Print results (thread-safe with cout)
+        // Print results
         {
             std::lock_guard<std::mutex> lock(console_mutex);
             std::cout << std::fixed << std::setprecision(8);
@@ -270,42 +259,23 @@ void processing_thread(int thread_id) {
 // Main Function
 int main(int argc, char* argv[]) {
     
-    // Parse command line arguments
     double sampling_rate = RX_RATE;
-    int num_threads = 2;  // Default 2 processing threads
-    double run_time = 10.0;  // Default run for 10 seconds
+    int num_threads = 2;
+    double run_time = 10.0;
     
-    if (argc > 1) {
-        sampling_rate = std::stod(argv[1]);
-        std::cout << "Using sampling rate: " << sampling_rate/1e6 << " MHz" << std::endl;
-    }
-    if (argc > 2) {
-        num_threads = std::stoi(argv[2]);
-        std::cout << "Using " << num_threads << " processing threads" << std::endl;
-    }
-    if (argc > 3) {
-        run_time = std::stod(argv[3]);
-        std::cout << "Running for " << run_time << " seconds" << std::endl;
-    }
-    
-    // Print usage if needed
-    if (argc == 1) {
-        std::cout << "Usage: " << argv[0] << " [sampling_rate] [num_threads] [run_time_seconds]" << std::endl;
-        std::cout << "Example: " << argv[0] << " 5e6 4 30" << std::endl;
-        std::cout << "Using defaults: rate=" << sampling_rate/1e6 << "MHz, threads=" << num_threads 
-                  << ", time=" << run_time << "s" << std::endl;
-    }
+    if (argc > 1) sampling_rate = std::stod(argv[1]);
+    if (argc > 2) num_threads = std::stoi(argv[2]);
+    if (argc > 3) run_time = std::stod(argv[3]);
     
     try {
-        // Create USRP device - N210 Hardware
-        std::cout << "\n=== Creating N210 USRP device ===" << std::endl;
-        std::string device_args = "addr=192.168.10.2,serial=F51F60";  // Your specific N210
+        // Create USRP device - HARDWARE VERSION
+        std::cout << "\n=== Connecting to N210 Hardware ===" << std::endl;
+        std::string device_args = "addr=192.168.10.2";  // N210 IP address
         uhd::usrp::multi_usrp::sptr usrp = uhd::usrp::multi_usrp::make(device_args);
         
-        // Print device info
         std::cout << "Using device: " << usrp->get_pp_string() << std::endl;
         
-        // Create vector to hold threads
+        // Create threads
         std::vector<std::thread> threads;
         
         // Start RX streamer thread
@@ -316,13 +286,10 @@ int main(int argc, char* argv[]) {
             threads.emplace_back(processing_thread, i + 1);
         }
         
-        // Run for specified time
         std::cout << "\n=== Running for " << run_time << " seconds ===" << std::endl;
         std::cout << "Receiving REAL radio signals from N210!" << std::endl;
         std::cout << "Carrier Frequency: " << RX_FREQ/1e9 << " GHz" << std::endl;
         std::cout << "Sampling Rate: " << sampling_rate/1e6 << " MHz" << std::endl;
-        std::cout << "Samples per Block: " << SAMPLES_PER_BLOCK << std::endl;
-        std::cout << "Processing Threads: " << num_threads << std::endl;
         std::cout << "========================================\n" << std::endl;
         
         // Wait for specified duration
@@ -331,7 +298,7 @@ int main(int argc, char* argv[]) {
         // Signal threads to stop
         std::cout << "\n=== Stopping threads ===" << std::endl;
         stop_signal.store(true);
-        sample_queue.notify_all();  // Wake up any waiting threads
+        sample_queue.notify_all();
         
         // Join all threads
         for (auto& t : threads) {
@@ -342,7 +309,6 @@ int main(int argc, char* argv[]) {
         std::cout << "\n=== Final Statistics ===" << std::endl;
         std::cout << "Total Overflows: " << overflow_count.load() << std::endl;
         
-        // Performance analysis
         if (overflow_count.load() > 0) {
             std::cout << "WARNING: Overflows detected at " << sampling_rate/1e6 
                       << " MHz sampling rate!" << std::endl;
@@ -353,12 +319,11 @@ int main(int argc, char* argv[]) {
         }
         
     } catch (const std::exception& e) {
-        std::cerr << "Error: " << e.what() << std::endl;
-        std::cerr << "Make sure N210 is connected and accessible at 192.168.10.2" << std::endl;
+        std::cerr << "Hardware error: " << e.what() << std::endl;
+        std::cerr << "Make sure N210 is connected and IP is configured correctly!" << std::endl;
         return -1;
     }
     
-    std::cout << "\nN210 Hardware program finished!" << std::endl;
-    
+    std::cout << "\nHardware program finished!" << std::endl;
     return 0;
 }
