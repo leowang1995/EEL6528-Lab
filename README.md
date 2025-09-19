@@ -1,3 +1,3 @@
-# EEL6528-Lab1
+# EEL6528-Lab
 
 Digital Communication with Software-define Radio Lab
