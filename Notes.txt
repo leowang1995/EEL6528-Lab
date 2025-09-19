@@ -1,4 +1,38 @@
 
+
+Pull the code on Linux box
+
+# Clone the repository (first time)
+git clone https://github.com/leowang1995/EEL6528-Lab1.git
+cd EEL6528-Lab1
+
+# Or if you already have it cloned, just pull the updates
+git pull origin main
+
+# Make scripts executable
+chmod +x run_linux.sh
+
+# Quick start
+./run_linux.sh --install-deps  # Install dependencies
+./run_linux.sh --n210          # Compile N210 version
+./lab1_n210 5e6 4 30           # Run with N210
+
+Push every commit to Github
+# 1. Check what changed
+git status
+
+# 2. Add all changes
+git add .
+
+# 3. Commit with message
+git commit -m "Describe what you changed"
+
+# 4. Push to GitHub
+git push origin main
+
+
+
+
 # Standard workflow for your lab
 cd ~/EEL6528-Lab1
 g++ -std=c++17 -O3 -o lab1_n210 lab1_n210.cpp -luhd -pthread
