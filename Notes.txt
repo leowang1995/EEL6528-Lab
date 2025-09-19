@@ -1,0 +1,25 @@
+
+
+// =============================================================================
+// Lab Questions Helper
+// =============================================================================
+// Question 2: Testing different sampling rates
+// Run these commands and observe CPU usage with 'top -H':
+//   ./lab1_rx 1e6 2 30    # 1 MHz - should work fine
+//   ./lab1_rx 5e6 2 30    # 5 MHz - may see higher CPU
+//   ./lab1_rx 10e6 2 30   # 10 MHz - likely to see overflows
+//   ./lab1_rx 20e6 2 30   # 20 MHz - expect many overflows
+//   ./lab1_rx 25e6 2 30   # 25 MHz - maximum for Gigabit Ethernet
+//
+// Question 3: Testing different number of threads
+// Run these commands to observe thread scaling effects:
+//   ./lab1_rx 5e6 1 30    # 1 processing thread
+//   ./lab1_rx 5e6 2 30    # 2 processing threads
+//   ./lab1_rx 5e6 4 30    # 4 processing threads
+//   ./lab1_rx 5e6 8 30    # 8 processing threads
+//
+// Expected observations:
+// - More threads can help process blocks faster
+// - Too many threads may cause context switching overhead
+// - Optimal thread count depends on number of CPU cores
+// =============================================================================

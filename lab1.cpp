@@ -1,9 +1,14 @@
 
+// Temporary fix for IDE IntelliSense
+#ifndef SIMULATE_MODE
+#define SIMULATE_MODE
+#endif
+
 // EEL6528 Lab 1: Multi-threaded RX Streamer with Power Calculation
-// Based on code examples from https://tanfwong.github.io/sdr_notes/ch2/prelims_exs.html
+
 //
-// Compile for real hardware: g++ -std=c++17 -O3 -o lab1_rx EEL6528_lab1.cpp -luhd -pthread
-// Compile for simulation: g++ -std=c++17 -O3 -DSIMULATE_MODE -o lab1_rx_sim EEL6528_lab1.cpp -pthread
+// Compile for real hardware: g++ -std=c++17 -O3 -o lab1_rx lab1.cpp -luhd -pthread
+// Compile for simulation: g++ -std=c++17 -O3 -DSIMULATE_MODE -o lab1_rx_sim lab1.cpp -pthread
 // Run: ./lab1_rx (hardware) or ./lab1_rx_sim (simulation)
 
 // UHD includes - comment out for local testing without UHD
@@ -11,6 +16,9 @@
 #include <uhd/usrp/multi_usrp.hpp>
 #include <uhd/stream.hpp>
 #include <uhd/types/tune_request.hpp>
+#include <uhd/types/sensors.hpp>
+#include <uhd/utils/thread.hpp>
+#include <uhd/utils/safe_main.hpp>
 #endif
 
 #include <iostream>
@@ -23,49 +31,65 @@
 #include <atomic>
 #include <chrono>
 #include <iomanip>
+#include <algorithm>
+#include <string>
+#include <memory>
+#include <cmath>
+#include <cstdlib>
 
-using namespace std;
+
 
 #ifdef SIMULATE_MODE
+#define SIMULATE_MODE
 // Mock UHD types for simulation
 namespace uhd {
-    namespace usrp {
-        struct multi_usrp {
-            typedef shared_ptr<multi_usrp> sptr;
-            static sptr make(const string& args) { return nullptr; }
-            void set_rx_rate(double rate) {}
-            double get_rx_rate() { return 1e6; }
-            void set_rx_freq(double freq) {}
-            double get_rx_freq() { return 2.437e9; }
-            void set_rx_gain(double gain) {}
-            double get_rx_gain() { return 30.0; }
-            string get_pp_string() { return "Mock USRP"; }
-            vector<string> get_rx_sensor_names() { return {}; }
-        };
-    }
+    // Forward declarations
+    struct sensor_value_t;
+    struct rx_streamer;
+    struct stream_args_t;
+    struct stream_cmd_t;
+    struct rx_metadata_t;
+    struct time_spec_t;
+    struct tune_request_t;
+    
     struct tune_request_t {
         tune_request_t(double f) {}
     };
+    
     struct time_spec_t {};
+    
     struct sensor_value_t {
-        string to_pp_string() { return "Mock Sensor"; }
+        std::string to_pp_string() { return "Mock Sensor"; }
         bool to_bool() { return true; }
     };
+    
     struct rx_streamer {
-        typedef shared_ptr<rx_streamer> sptr;
-        size_t recv(complex<float>* buff, size_t size, void* md, double timeout) {
-            // Generate mock data
+        typedef std::shared_ptr<rx_streamer> sptr;
+        size_t recv(std::complex<float>* buff, size_t size, rx_metadata_t& md, double timeout) {
+            // Generate mock data with varying power levels
+            static size_t block_count = 0;
+            block_count++;
+            
             for(size_t i = 0; i < size; i++) {
-                buff[i] = complex<float>(0.1f * sin(i * 0.01f), 0.1f * cos(i * 0.01f));
+                // Create different signal patterns with varying amplitudes
+                float amplitude = 0.1f + 0.05f * std::sin(block_count * 0.1f); // Amplitude varies from 0.05 to 0.15
+                float noise = 0.02f * (std::rand() / (float)RAND_MAX - 0.5f); // Small random noise
+                
+                float real_part = amplitude * std::sin(i * 0.01f) + noise;
+                float imag_part = amplitude * std::cos(i * 0.01f) + noise;
+                
+                buff[i] = std::complex<float>(real_part, imag_part);
             }
-            this_thread::sleep_for(chrono::milliseconds(10)); // Simulate data rate
+            std::this_thread::sleep_for(std::chrono::milliseconds(10)); // Simulate data rate
             return size;
         }
-        void issue_stream_cmd(void* cmd) {}
+        void issue_stream_cmd(const stream_cmd_t& cmd) {}
     };
+    
     struct stream_args_t {
-        stream_args_t(const string& cpu, const string& wire) {}
+        stream_args_t(const std::string& cpu, const std::string& wire) {}
     };
+    
     struct stream_cmd_t {
         enum stream_mode_t { STREAM_MODE_START_CONTINUOUS, STREAM_MODE_STOP_CONTINUOUS };
         stream_cmd_t(stream_mode_t mode) : stream_mode(mode) {}
@@ -74,13 +98,32 @@ namespace uhd {
         bool stream_now;
         time_spec_t time_spec;
     };
+    
     struct rx_metadata_t {
         enum error_code_t { ERROR_CODE_NONE, ERROR_CODE_TIMEOUT, ERROR_CODE_OVERFLOW };
         error_code_t error_code = ERROR_CODE_NONE;
-        string strerror() { return "Mock error"; }
+        std::string strerror() { return "Mock error"; }
     };
+
+    namespace usrp {
+        struct multi_usrp {
+            typedef std::shared_ptr<multi_usrp> sptr;
+            static sptr make(const std::string& args) { return nullptr; }
+            void set_rx_rate(double rate) {}        //set the rx rate
+            double get_rx_rate() { return 1e6; }    //get the rx rate
+            void set_rx_freq(const tune_request_t& tune_req) {}    //set the rx frequency
+            double get_rx_freq() { return 2.437e9; }    //get the rx frequency
+            void set_rx_gain(double gain) {}    //set the rx gain
+            double get_rx_gain() { return 30.0; }
+            std::string get_pp_string() { return "Mock USRP"; }    //get the pp string
+            std::vector<std::string> get_rx_sensor_names() { return {}; }    //get the rx sensor names
+            sensor_value_t get_rx_sensor(const std::string& name) { return sensor_value_t(); }    //get the rx sensor
+            rx_streamer::sptr get_rx_stream(const stream_args_t& args) { return rx_streamer::sptr(); }
+        };
+    }
 }
 #endif
+
 
 // =============================================================================
 // Global Constants and Variables (from class examples)
@@ -92,18 +135,21 @@ const double RX_GAIN = 30.0;           // Default RX gain
 const size_t SAMPLES_PER_BLOCK = 10000; // 10000 samples per block as required
 
 // Thread control variables
-atomic<bool> stop_signal(false);
-atomic<size_t> overflow_count(0);
+std::atomic<bool> stop_signal(false);
+std::atomic<size_t> overflow_count(0);
+
+// Mutex for thread-safe console output
+std::mutex console_mutex;
 
 // =====================================================================================
 // SampleBlock structure to hold samples with block number, hold 10000 samples per block
 // =====================================================================================
 struct SampleBlock {
     size_t block_number;
-    vector<complex<float>> samples;
+    std::vector<std::complex<float>> samples;
     
     SampleBlock() : block_number(0) {}
-    SampleBlock(size_t num, size_t size) : block_number(num), samples(size) {}
+    SampleBlock(size_t num, size_t num_samples) : block_number(num), samples(num_samples) {}
 };
 
 // =============================================================================
@@ -111,21 +157,21 @@ struct SampleBlock {
 // =============================================================================
 class SampleQueue {
 private:
-    queue<SampleBlock> queue;
-    mutex mtx;
-    condition_variable cv;
+    std::queue<SampleBlock> queue;
+    std::mutex mtx;
+    std::condition_variable cv;
     
 public:
     // Push a block to the queue
     void push(const SampleBlock& block) {
-        unique_lock<mutex> lock(mtx);
+        std::unique_lock<std::mutex> lock(mtx);
         queue.push(block);
         cv.notify_one();
     }
     
     // Pop a block from the queue (blocking)
     bool pop(SampleBlock& block) {
-        unique_lock<mutex> lock(mtx);
+        std::unique_lock<std::mutex> lock(mtx);
         
         // Wait until queue has data or stop signal
         cv.wait(lock, [this] { 
@@ -146,7 +192,7 @@ public:
     
     // Get current queue size
     size_t size() {
-        lock_guard<mutex> lock(mtx);
+        std::lock_guard<std::mutex> lock(mtx);
         return queue.size();
     }
     
@@ -165,24 +211,43 @@ SampleQueue sample_queue;
 void rx_streamer_thread(uhd::usrp::multi_usrp::sptr usrp, double sampling_rate) {
     
     // Set RX rate
-    cout << "Setting RX rate to " << sampling_rate/1e6 << " MHz..." << endl;
+    {
+        std::lock_guard<std::mutex> lock(console_mutex);
+        std::cout << "Setting RX rate to " << sampling_rate/1e6 << " MHz..." << std::endl;
+    }
     usrp->set_rx_rate(sampling_rate);
-    cout << "Actual RX rate: " << usrp->get_rx_rate()/1e6 << " MHz" << endl;
+    {
+        std::lock_guard<std::mutex> lock(console_mutex);
+        std::cout << "Actual RX rate: " << usrp->get_rx_rate()/1e6 << " MHz" << std::endl;
+    }
     
     // Set RX frequency
-    cout << "Setting RX frequency to " << RX_FREQ/1e9 << " GHz..." << endl;
+    {
+        std::lock_guard<std::mutex> lock(console_mutex);
+        std::cout << "Setting RX frequency to " << RX_FREQ/1e9 << " GHz..." << std::endl;
+    }
     uhd::tune_request_t tune_request(RX_FREQ);
     usrp->set_rx_freq(tune_request);
-    cout << "Actual RX frequency: " << usrp->get_rx_freq()/1e9 << " GHz" << endl;
+    {
+        std::lock_guard<std::mutex> lock(console_mutex);
+        std::cout << "Actual RX frequency: " << usrp->get_rx_freq()/1e9 << " GHz" << std::endl;
+    }
     
     // Set RX gain
-    cout << "Setting RX gain to " << RX_GAIN << " dB..." << endl;
+    {
+        std::lock_guard<std::mutex> lock(console_mutex);
+        std::cout << "Setting RX gain to " << RX_GAIN << " dB..." << std::endl;
+    }
     usrp->set_rx_gain(RX_GAIN);
-    cout << "Actual RX gain: " << usrp->get_rx_gain() << " dB" << endl;
+    {
+        std::lock_guard<std::mutex> lock(console_mutex);
+        std::cout << "Actual RX gain: " << usrp->get_rx_gain() << " dB" << std::endl;
+    }
     
     // Wait for setup time
-    this_thread::sleep_for(chrono::seconds(1));
+    std::this_thread::sleep_for(std::chrono::seconds(1));
     
+#ifndef SIMULATE_MODE
     // Check LO locked sensor
     std::vector<std::string> sensor_names = usrp->get_rx_sensor_names();
     if (std::find(sensor_names.begin(), sensor_names.end(), "lo_locked") != sensor_names.end()) {
@@ -193,9 +258,10 @@ void rx_streamer_thread(uhd::usrp::multi_usrp::sptr usrp, double sampling_rate) 
             return;
         }
     }
+#endif
     
     // Create RX streamer
-    uhd::stream_args_t stream_args("fc32", "sc16");  // CPU format, Wire format
+    uhd::stream_args_t stream_args("fc32", "sc16");  // CPU format, Wire format, a synchronous stream
     uhd::rx_streamer::sptr rx_stream = usrp->get_rx_stream(stream_args);
     
     // Allocate buffer for samples
@@ -267,7 +333,10 @@ void rx_streamer_thread(uhd::usrp::multi_usrp::sptr usrp, double sampling_rate) 
 // Processing Thread Function (calculates average power)
 // =============================================================================
 void processing_thread(int thread_id) {
-    std::cout << "Processing thread " << thread_id << " started" << std::endl;
+    {
+        std::lock_guard<std::mutex> lock(console_mutex);
+        std::cout << "Processing thread " << thread_id << " started" << std::endl;
+    }
     
     size_t blocks_processed = 0;
     
@@ -288,18 +357,24 @@ void processing_thread(int thread_id) {
         double avg_power = sum_power / block.samples.size();
         
         // Print results (thread-safe with cout)
-        std::cout << std::fixed << std::setprecision(8);
-        std::cout << "[Thread " << thread_id << "] "
-                  << "Block #" << std::setw(6) << block.block_number 
-                  << " | Avg Power: " << std::setw(14) << avg_power
-                  << " | Queue Size: " << sample_queue.size()
-                  << std::endl;
+        {
+            std::lock_guard<std::mutex> lock(console_mutex);
+            std::cout << std::fixed << std::setprecision(8);
+            std::cout << "[Thread " << thread_id << "] "
+                      << "Block #" << std::setw(6) << block.block_number 
+                      << " | Avg Power: " << std::setw(14) << avg_power
+                      << " | Queue Size: " << sample_queue.size()
+                      << std::endl;
+        }
         
         blocks_processed++;
     }
     
-    std::cout << "Processing thread " << thread_id 
-              << " stopped. Processed " << blocks_processed << " blocks" << std::endl;
+    {
+        std::lock_guard<std::mutex> lock(console_mutex);
+        std::cout << "Processing thread " << thread_id 
+                  << " stopped. Processed " << blocks_processed << " blocks" << std::endl;
+    }
 }
 
 // =============================================================================
@@ -333,10 +408,16 @@ int main(int argc, char* argv[]) {
                   << ", time=" << run_time << "s" << std::endl;
     }
     
+#ifndef SIMULATE_MODE
     // Create USRP device
     std::cout << "\n=== Creating USRP device ===" << std::endl;
     std::string device_args = "";  // Empty for default
     uhd::usrp::multi_usrp::sptr usrp = uhd::usrp::multi_usrp::make(device_args);
+#else
+    // Create mock USRP for simulation
+    std::cout << "\n=== Creating Mock USRP device (Simulation Mode) ===" << std::endl;
+    uhd::usrp::multi_usrp::sptr usrp = uhd::usrp::multi_usrp::make("");
+#endif
     
     // Print device info
     std::cout << "Using device: " << usrp->get_pp_string() << std::endl;
@@ -392,26 +473,3 @@ int main(int argc, char* argv[]) {
     return 0;
 }
 
-// =============================================================================
-// Lab Questions Helper
-// =============================================================================
-// Question 2: Testing different sampling rates
-// Run these commands and observe CPU usage with 'top -H':
-//   ./lab1_rx 1e6 2 30    # 1 MHz - should work fine
-//   ./lab1_rx 5e6 2 30    # 5 MHz - may see higher CPU
-//   ./lab1_rx 10e6 2 30   # 10 MHz - likely to see overflows
-//   ./lab1_rx 20e6 2 30   # 20 MHz - expect many overflows
-//   ./lab1_rx 25e6 2 30   # 25 MHz - maximum for Gigabit Ethernet
-//
-// Question 3: Testing different number of threads
-// Run these commands to observe thread scaling effects:
-//   ./lab1_rx 5e6 1 30    # 1 processing thread
-//   ./lab1_rx 5e6 2 30    # 2 processing threads
-//   ./lab1_rx 5e6 4 30    # 4 processing threads
-//   ./lab1_rx 5e6 8 30    # 8 processing threads
-//
-// Expected observations:
-// - More threads can help process blocks faster
-// - Too many threads may cause context switching overhead
-// - Optimal thread count depends on number of CPU cores
-// =============================================================================
