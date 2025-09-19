@@ -1,4 +1,10 @@
 
+# Standard workflow for your lab
+cd ~/EEL6528-Lab1
+g++ -std=c++17 -O3 -o lab1_n210 lab1_n210.cpp -luhd -pthread
+./lab1_n210
+
+
 
 // =============================================================================
 // Lab Questions Helper
