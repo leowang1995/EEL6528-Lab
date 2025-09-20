@@ -1,7 +1,7 @@
-# EEL6528_Lab
-Digital Communication with Software-define Radio Lab
+# EEL6528 Digital Communication with Software-define Radio Lab
 
-## Lab 1: Multi-threaded RX Streamer with Power Calculation
+## Lab 1: Make friends with UHD
+Multi-threaded RX Streamer with Power Calculation
 
 ### Overview
 This lab implements a multi-threaded RX streamer with power calculation for Software-Defined Radio (SDR) applications using USRP N210 hardware.
@@ -14,7 +14,6 @@ This lab implements a multi-threaded RX streamer with power calculation for Soft
 │   ├── lab1_bob.cpp       # Bob's specific N210 setup
 │   ├── Makefile           # Build automation
 │   └── other .cpp files   # Additional implementations
-├── report/                # Lab report and documentation
 ├── README.md              # This file
 └── setup files           # Build scripts and configuration
 ```
