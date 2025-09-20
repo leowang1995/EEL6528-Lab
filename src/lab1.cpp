@@ -1,11 +1,16 @@
-// EEL6528 Lab 1: Multi-threaded RX Streamer with Power Calculation
-// Based on code examples from https://tanfwong.github.io/sdr_notes/ch2/prelims_exs.html
-//
-// Compile for real hardware: g++ -std=c++17 -O3 -o lab1_rx EEL6528_lab1.cpp -luhd -pthread
-// Compile for simulation: g++ -std=c++17 -O3 -DSIMULATE_MODE -o lab1_rx_sim EEL6528_lab1.cpp -pthread
-// Run: ./lab1_rx (hardware) or ./lab1_rx_sim (simulation)
+/*
+ *
+ * EEL6528 Lab 1: Make friends with UHD
+ * Multi-threaded Software Defined Radio (SDR) Receiver
+ * 
+ * COMPILATION:
+ * Hardware Mode: g++ -std=c++17 -O3 -o lab1_rx lab1.cpp -luhd -pthread
+ * Simulation Mode: g++ -std=c++17 -O3 -DSIMULATE_MODE -o lab1_rx_sim lab1.cpp -pthread
+ * 
+ * Based on code examples from: https://tanfwong.github.io/sdr_notes/ch2/prelims_exs.html
+ */
 
-// UHD includes - comment out for local testing without UHD
+// UHD includes - only for hardware mode
 #ifndef SIMULATE_MODE
 #include <uhd/usrp/multi_usrp.hpp>
 #include <uhd/stream.hpp>
@@ -81,22 +86,17 @@ namespace uhd {
 }
 #endif
 
-// =============================================================================
-// Global Constants and Variables (from class examples)
-// =============================================================================
-// USRP configuration parameters as specified in lab requirements
+// Hardware Configuration
 const double RX_FREQ = 2.437e9;        // 2.437 GHz RX carrier frequency
-const double RX_RATE = 1e6;            // RX sampleing rate
-const double RX_GAIN = 30.0;           // Default RX gain
-const size_t SAMPLES_PER_BLOCK = 10000; // 10000 samples per block as required
+const double RX_RATE = 1e6;            // 1 MHz RX sampling rate
+const double RX_GAIN = 30.0;           // 30 dB RX gain
+const size_t SAMPLES_PER_BLOCK = 10000; // 10000 samples per block
 
 // Thread control variables
 atomic<bool> stop_signal(false);
 atomic<size_t> overflow_count(0);
 
-// =====================================================================================
-// SampleBlock structure to hold samples with block number, hold 10000 samples per block
-// =====================================================================================
+// SampleBlock structure
 struct SampleBlock {
     size_t block_number;
     vector<complex<float>> samples;
@@ -105,9 +105,7 @@ struct SampleBlock {
     SampleBlock(size_t num, size_t size) : block_number(num), samples(size) {}
 };
 
-// =============================================================================
-// Thread-safe FIFO Queue (based on class example pattern)
-// =============================================================================
+// Thread-safe FIFO Queue
 class SampleQueue {
 private:
     queue<SampleBlock> queue;
@@ -115,18 +113,15 @@ private:
     condition_variable cv;
     
 public:
-    // Push a block to the queue
     void push(const SampleBlock& block) {
         unique_lock<mutex> lock(mtx);
         queue.push(block);
         cv.notify_one();
     }
     
-    // Pop a block from the queue (blocking)
     bool pop(SampleBlock& block) {
         unique_lock<mutex> lock(mtx);
         
-        // Wait until queue has data or stop signal
         cv.wait(lock, [this] { 
             return !queue.empty() || stop_signal.load(); 
         });
@@ -143,13 +138,11 @@ public:
         return false;
     }
     
-    // Get current queue size
     size_t size() {
         lock_guard<mutex> lock(mtx);
         return queue.size();
     }
     
-    // Wake up all waiting threads
     void notify_all() {
         cv.notify_all();
     }
@@ -158,9 +151,7 @@ public:
 // Global queue instance
 SampleQueue sample_queue;
 
-// =============================================================================
-// RX Streamer Function (based on class example rx_samples_to_file.cpp pattern)
-// =============================================================================
+// RX Streamer Function
 void rx_streamer_thread(uhd::usrp::multi_usrp::sptr usrp, double sampling_rate) {
     
     // Set RX rate
@@ -262,9 +253,7 @@ void rx_streamer_thread(uhd::usrp::multi_usrp::sptr usrp, double sampling_rate) 
     std::cout << "Total overflows: " << overflow_count.load() << std::endl;
 }
 
-// =============================================================================
-// Processing Thread Function (calculates average power)
-// =============================================================================
+// Processing Thread Function
 void processing_thread(int thread_id) {
     std::cout << "Processing thread " << thread_id << " started" << std::endl;
     
@@ -301,14 +290,12 @@ void processing_thread(int thread_id) {
               << " stopped. Processed " << blocks_processed << " blocks" << std::endl;
 }
 
-// =============================================================================
-// Main Function (based on class example structure)
-// =============================================================================
+// Main Function
 int main(int argc, char* argv[]) {
     
-    // Parse command line arguments for sampling rate
+    // Parse command line arguments
     double sampling_rate = RX_RATE;
-    int num_threads = 2;  // Default 2 processing threads as required
+    int num_threads = 2;  // Default 2 processing threads
     double run_time = 10.0;  // Default run for 10 seconds
     
     if (argc > 1) {
@@ -376,7 +363,7 @@ int main(int argc, char* argv[]) {
     std::cout << "\n=== Final Statistics ===" << std::endl;
     std::cout << "Total Overflows: " << overflow_count.load() << std::endl;
     
-    // Additional statistics for different sampling rates (for Question 2)
+    // Performance analysis for lab questions
     if (overflow_count.load() > 0) {
         std::cout << "WARNING: Overflows detected at " << sampling_rate/1e6 
                   << " MHz sampling rate!" << std::endl;
@@ -391,9 +378,7 @@ int main(int argc, char* argv[]) {
     return 0;
 }
 
-// =============================================================================
 // Lab Questions Helper
-// =============================================================================
 // Question 2: Testing different sampling rates
 // Run these commands and observe CPU usage with 'top -H':
 //   ./lab1_rx 1e6 2 30    # 1 MHz - should work fine
@@ -413,4 +398,3 @@ int main(int argc, char* argv[]) {
 // - More threads can help process blocks faster
 // - Too many threads may cause context switching overhead
 // - Optimal thread count depends on number of CPU cores
-// =============================================================================
