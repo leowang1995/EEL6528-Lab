@@ -15,7 +15,13 @@ The signal power analysis section calculates the average power of each received 
 ---
 
 ## iii. Implementation
-In the program implementation, there are 3 default threads, one is RX streamer thread which works for configure USRP hardware, receive the continues complex samples from fardio, push the completed sample block to FIFO queue, and handle overflow detection. two processing threads to retrieve sample block from FIFO queue, calculate average signal power for each block, and display the results by default, the number of processing threads can be adjusted throught the command line for further testing. The processing thread is also managing the ouput. The key functions and classes are listed in Solution Approach section. 
+In the program implementation, there are three default threads. The first is the RX streamer thread, which is responsible for configuring the USRP hardware, continuously receiving complex samples from the radio, pushing completed sample blocks into the FIFO queue, and handling overflow detection.
+
+In addition, there are two processing threads that retrieve sample blocks from the FIFO queue, calculate the average signal power for each block, and display the results. By default, two processing threads are created, but the number of processing threads can be adjusted through command-line arguments for performance testing or scalability experiments.
+
+Each processing thread also manages the output stage, ensuring that the block number and corresponding average power are displayed in real time.
+
+The key functions and classes that support these operations are described in detail in the Solution Approach section.
 
 ---
 
