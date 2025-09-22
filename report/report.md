@@ -26,7 +26,7 @@ The key functions and classes that support these operations are described in det
 ---
 
 ## iv. Results
-First, I ran 1M sampling rate, the 
+Testing results.
 
 ---
 
