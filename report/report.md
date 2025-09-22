@@ -1,10 +1,9 @@
 # EEL6528 Lab 1: Make friends with UHD Report
 
 ## Introduction
-Briefly describe the purpose of this lab.  
-- What problem are you solving?  
-- What is the main goal of the lab?  
-- Why is it important or interesting?
+In Lab 1: Make Friends with UHD, the UHD C++ APIs are used to construct a USRP RX object that continuously streams received signal samples from the USRP N210 radio to the host PC. These samples are placed into a FIFO queue in blocks. The power of each block is calculated and the averaged value is printed. The RX carrier frequency is set to 2.437 GHz, and the sampling rate is 1 MHz.
+
+According to the requirements, the RX sample streamer function continuously collects blocks of 10,000 complex-valued samples from the radio, numbers the blocks consecutively, and pushes them into the FIFO queue. The processing function pops one block at a time from the FIFO queue, calculates the average power of the block, and prints the block number together with its average power value. 
 
 ---
 
