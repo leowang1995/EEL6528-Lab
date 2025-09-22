@@ -9,7 +9,6 @@
 // ============================================================================
 // GCC 13 COMPATIBILITY FIXES
 // ============================================================================
-#define _GLIBCXX_USE_CXX11_ABI 0
 #define _GLIBCXX_USE_DEPRECATED 1
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
