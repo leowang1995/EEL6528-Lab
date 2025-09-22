@@ -1,10 +1,10 @@
- *
+/*
  * EEL6528 Lab 1: Make friends with UHD
  * Multi-threaded Software Defined Radio (SDR) Receiver
  * 
  * COMPILATION:
  * g++ -std=c++14 -D_GLIBCXX_USE_CXX11_ABI=0 -o lab1_bob lab1_bob.cpp -luhd -lpthread
- * 
+ */
 
 // ============================================================================
 // GCC 13 COMPATIBILITY FIXES
