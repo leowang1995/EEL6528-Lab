@@ -3,11 +3,17 @@
  * Multi-threaded Software Defined Radio (SDR) Receiver
  * 
  * COMPILATION:
- * g++ -std=c++17 -O3 -o lab1_n210 lab1_n210.cpp -luhd -pthread
+ * g++ -std=c++14 -D_GLIBCXX_USE_CXX11_ABI=0 -o lab1_bob lab1_bob.cpp -luhd -lpthread
  * 
 
-
- 
+// ============================================================================
+// GCC 13 COMPATIBILITY FIXES
+// ============================================================================
+#define _GLIBCXX_USE_CXX11_ABI 0
+#define _GLIBCXX_USE_DEPRECATED 1
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#pragma GCC diagnostic ignored "-Wunused-parameter"
 
 // ============================================================================
 // INCLUDE STATEMENTS
@@ -37,6 +43,8 @@
 #include <string>            // String manipulation
 #include <memory>            // Smart pointers and memory management
 #include <cmath>             // Mathematical functions (norm, etc.)
+
+#pragma GCC diagnostic pop
 
 // ============================================================================
 // HARDWARE CONFIGURATION CONSTANTS
