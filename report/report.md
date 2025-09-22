@@ -34,6 +34,6 @@ First, I ran 1M sampling rate, the
 All source code for this lab is located in the [`src/`](src) directory.  
 Below are direct links to each file:  
 
-- [lab1.cpp](src/main.cpp) – Base program for lab1 
-- [lab1_sim.cpp](src/main.cpp) – Simulation program without USRP N210
-- [lab1_bob.cpp](src/main.cpp) – Program works with hardware (USRP N210)
+- [lab1.cpp](src/lab1.cpp) – Base program for lab1 
+- [lab1_sim.cpp](src/lab1_sim.cpp) – Simulation program without USRP N210
+- [lab1_bob.cpp](src/lab1_bob.cpp) – Program works with hardware (USRP N210)
