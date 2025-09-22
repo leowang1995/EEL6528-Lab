@@ -639,7 +639,7 @@ int main(int argc, char* argv[]) {
         
         // Analyze system performance and provide feedback
         if (overflow_count.load() > 0) {
-            std::cout << "\n⚠ PERFORMANCE WARNING:" << std::endl;
+            std::cout << "\n  PERFORMANCE WARNING:" << std::endl;
             std::cout << "  - " << overflow_count.load() << " overflow events detected" << std::endl;
             std::cout << "  - Data loss occurred at " << sampling_rate/1e6 << " MHz sampling rate" << std::endl;
             std::cout << "  - System cannot keep up with current data rate" << std::endl;
@@ -649,7 +649,7 @@ int main(int argc, char* argv[]) {
             std::cout << "  - Optimize signal processing algorithms" << std::endl;
             std::cout << "  - Check network connection to N210" << std::endl;
         } else {
-            std::cout << "\n✅ PERFORMANCE SUCCESS:" << std::endl;
+            std::cout << "\n  PERFORMANCE SUCCESS:" << std::endl;
             std::cout << "  - No data loss at " << sampling_rate/1e6 << " MHz sampling rate" << std::endl;
             std::cout << "  - System successfully processed all RF data" << std::endl;
             std::cout << "  - Multi-threading architecture performed optimally" << std::endl;
