@@ -157,10 +157,10 @@ struct SampleBlock {
  * SampleQueue: Thread-safe FIFO queue for producer-consumer pattern
  * 
  * This class implements a thread-safe queue using the producer-consumer pattern.
- * The RX thread (producer) pushes sample blocks, while processing threads
- * (consumers) pop blocks for analysis.
+ * The RX thread pushes sample blocks, while processing threads
+ * pop blocks for analysis.
  * 
- * PERFORMANCE CONSIDERATIONS:
+ * PERFORMANCE:
  * - unique_lock used for condition variable compatibility
  * - lock_guard used for simple critical sections
  * - notify_one() vs notify_all() optimizes wake-up efficiency
@@ -302,7 +302,7 @@ void rx_streamer_thread(uhd::usrp::multi_usrp::sptr usrp, double sampling_rate) 
     this_thread::sleep_for(chrono::seconds(1));
     
     // ========================================================================
-    //      VERIFY LOCAL OSCILLATOR (LO) LOCK STATUS
+    //      VERIFY LOCK STATUS
     // ========================================================================
     // Check if the RF synthesizer has achieved phase lock
     std::vector<std::string> sensor_names = usrp->get_rx_sensor_names();
