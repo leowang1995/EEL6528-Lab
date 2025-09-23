@@ -26,7 +26,7 @@ The key functions and classes that support these operations are described in det
 ---
 
 ## iv. Results
-Testing results.
+Testing results. the [`report/`](../report/results) directory.  
 
 ---
 
